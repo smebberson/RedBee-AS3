@@ -40,15 +40,11 @@ package com.scottmebberson.redbee
 		private function socketDataHandler (event : ProgressEvent) : void
 		{
 			
-			trace('RFIDReader: ' + event);
-			
 			var msg:String;
 			var index:int;
 			var data : String = this.readUTFBytes(this.bytesAvailable);
 			
 			_buffer += data;
-			
-			trace("RFIDReader: so far:" + _buffer);
 			
 			//loop through the buffer until it contains no more
 			//end of message delimiter
@@ -58,13 +54,11 @@ package com.scottmebberson.redbee
 				//we don't include the delimiter
 				msg = _buffer.substring(0, index);
 				
-				//remove the message from the buffer
-				_buffer = _buffer.substring(index + 1);
+				// reset the buffer
+				_buffer = '';
 				
 				//trace out the message (or do whatever you want with it)
 				parseResponse(msg);
-				
-				trace('RFIDReader: ' + msg);
 				
 			}
 			
@@ -73,14 +67,46 @@ package com.scottmebberson.redbee
 		private function parseResponse (msg : String) : void
 		{
 			
-			var positive : Boolean = (msg.indexOf('NACK') == -1) ? true : false;
+			// first things first, check for an asynchronous packet
+			// it should contain a packet event identifier followed by :(N)ACK XXX  XXX  XXX  XXX  XXX
+			// packet event identifiers are:
+			// T: for tag swipe
+			// DT: for tag delete
+			// ST: for tag save
+			// X:<PinId>: for pin changed
+			// X:P:<value>: for RF power enable/disabled
 			
-			trace("RFIDReader: valid: " + positive.toString());
+			if (msg.search(/^[TDSX:]{2,4}/) >= 0) {
+				processAsynchronousEvent(msg);
+			} else {
+				processSynchronousEvent(msg);
+			}
 			
-			// send out a RedBee Event
-			trace('RFIDReader: tag: ' + msg.substr(6, 14));
+		}
+		
+		private function processAsynchronousEvent (msg : String) : void
+		{
 			
-			dispatchEvent(new TagSwipeEvent(msg.substr(6, 14), (positive == true) ? 1 : 0));
+			// asynchronous packet event identifiers are:
+			// T: for tag swipe
+			// DT: for tag delete
+			// ST: for tag save
+			// X:<PinId>: for pin changed
+			// X:P:<value>: for RF power enable/disabled
+			
+			var id:String = msg.replace(/^(T|DT|ST):N?ACK ([0-9 ]+)$/, '$2');
+			var valid:int = (msg.indexOf('NACK') == -1) ? 1 : 0;
+			
+			if (msg.search(/^T:/) == 0) {
+				dispatchEvent(new TagSwipeEvent(id, valid));
+			}
+			
+		}
+		
+		private function processSynchronousEvent (msg : String) : void
+		{
+			
+			trace('RFIDReader:processSynchronousEvent: ' + msg);
 			
 		}
 		
