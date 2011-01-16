@@ -13,4 +13,5 @@ Most of the documentation, in fact all, that comes with RedBee is PC and .NET or
 
 ## Features
 
-*	recieve an asynchronous tag swipe event
+*	recieve an asynchronous tag swipe event (theoretically supports other asynchronous events, but are untested as yet)
+*	retrieve the firmware version of the RedBee
