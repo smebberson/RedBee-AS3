@@ -1,7 +1,10 @@
 package com.scottmebberson.redbee
 {
+	
+	import com.scottmebberson.redbee.events.RedBeeEvent;
 	import com.scottmebberson.redbee.events.TagSwipeEvent;
 	
+	import flash.events.ErrorEvent;
 	import flash.events.Event;
 	import flash.events.ProgressEvent;
 	import flash.net.Socket;
@@ -13,6 +16,10 @@ package com.scottmebberson.redbee
 		private var _buffer:String = "";
 		private var _host:String = "127.0.0.1";
 		private var _port:uint = 5331;
+		
+		/* private variables */
+		private var _previousCommunication:String;
+		private var _firmwareVersion:String;
 		
 		/* private constants */
 		private static const EOL_DELIMITER : String = "\r\n>";
@@ -107,6 +114,39 @@ package com.scottmebberson.redbee
 		{
 			
 			trace('RFIDReader:processSynchronousEvent: ' + msg);
+			
+			if (_previousCommunication.search(/^fw/) == 0) {
+				dispatchEvent(new RedBeeEvent(RedBeeEvent.FIRMWARE_VERSION, msg));
+			}
+			
+		}
+		
+		// public methods
+		public function requestFirmwareVersion () : void
+		{
+			
+			// make sure we're still connected
+			if (!connected) {
+				
+				dispatchEvent(new ErrorEvent(ErrorEvent.ERROR, true, true, "You must be connected to a local TCP proxy to send a command to the RedBee RFID Reader."));
+				return;
+				
+			}
+			
+			addEventListener(ProgressEvent.SOCKET_DATA, socketDataHandler, false, 0, true);
+			
+			_previousCommunication = 'fw\r';
+			
+			writeUTFBytes(_previousCommunication);
+			
+			flush();
+			
+		}
+		
+		public function getFirmwareVersion () : String
+		{
+			
+			return _firmwareVersion;
 			
 		}
 		
