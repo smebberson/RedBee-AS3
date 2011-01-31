@@ -7,7 +7,9 @@ package com.scottmebberson.redbee.events
 	{
 		
 		// event identifiers
-		public static const FIRMWARE_VERSION:String = "FIRMWARE_VERSION"
+		public static const FW:String = "FW";
+		public static const RST:String = "RST";
+		public static const XB:String = "XB";
 			
 		// private vars
 		private var _value:String;

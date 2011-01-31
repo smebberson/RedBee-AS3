@@ -19,7 +19,10 @@ package com.scottmebberson.redbee
 		
 		/* private variables */
 		private var _previousCommunication:String;
-		private var _firmwareVersion:String;
+		
+		private var _fw:String = null;
+		private var _rst:String = null;
+		private var _xb:int = -1;
 		
 		/* private constants */
 		private static const EOL_DELIMITER : String = "\r\n>";
@@ -113,29 +116,27 @@ package com.scottmebberson.redbee
 		private function processSynchronousEvent (msg : String) : void
 		{
 			
-			trace('RFIDReader:processSynchronousEvent: ' + msg);
+			// find the correct synchronous event we're processing
+			// then store the old value for caching, and fire the corresponding event
 			
 			if (_previousCommunication.search(/^fw/) == 0) {
-				dispatchEvent(new RedBeeEvent(RedBeeEvent.FIRMWARE_VERSION, msg));
+				_fw = msg;
+				dispatchEvent(new RedBeeEvent(RedBeeEvent.FW, msg));
+			} else if (_previousCommunication.search(/^rst/) == 0) {
+				_rst = msg;
+				dispatchEvent(new RedBeeEvent(RedBeeEvent.RST, msg));
+			} else if (_previousCommunication.search(/^xb/) == 0) {
+				_xb = Number(msg);
+				dispatchEvent(new RedBeeEvent(RedBeeEvent.XB, msg));
 			}
 			
 		}
 		
-		// public methods
-		public function requestFirmwareVersion () : void
-		{
+		// actually communicate with the RedBee device
+		private function sendCommand (cmd : String) : void
+		{	
 			
-			// make sure we're still connected
-			if (!connected) {
-				
-				dispatchEvent(new ErrorEvent(ErrorEvent.ERROR, true, true, "You must be connected to a local TCP proxy to send a command to the RedBee RFID Reader."));
-				return;
-				
-			}
-			
-			addEventListener(ProgressEvent.SOCKET_DATA, socketDataHandler, false, 0, true);
-			
-			_previousCommunication = 'fw\r';
+			_previousCommunication = cmd;
 			
 			writeUTFBytes(_previousCommunication);
 			
@@ -143,10 +144,97 @@ package com.scottmebberson.redbee
 			
 		}
 		
-		public function getFirmwareVersion () : String
+		/* *******************
+			public methods
+		******************* */
+		
+		// if '' is returned, it means the value is being requested from the device
+		public function fw (cache:Boolean=false) : String
 		{
 			
-			return _firmwareVersion;
+			var sReturn:String = '';
+			
+			if (cache == true && _fw != null) {
+				sReturn = _fw;
+				return sReturn;
+			}
+			
+			if (!connected) {
+				dispatchEvent(new ErrorEvent(ErrorEvent.ERROR, true, true, "You must be connected to a local TCP proxy to send a command to the RedBee RFID Reader."));
+				return '';
+			}
+			
+			sendCommand('fw\r');
+			
+			return sReturn;
+			
+		}
+		
+		// if '' is returned, it means the value is being requested from the device
+		public function rst (cache:Boolean=false) : String
+		{
+			
+			var sReturn:String = '';
+			
+			// if they've requested cache, but it doesn't exist yet
+			// we'll return '' and request it
+			if (cache == true && _rst != null)  {
+				sReturn = _rst;
+				return sReturn;
+			}
+			
+			// make sure we're still connected
+			if (!connected) {
+				dispatchEvent(new ErrorEvent(ErrorEvent.ERROR, true, true, "You must be connected to a local TCP proxy to send a command to the RedBee RFID Reader."));
+				return '';
+			}
+			
+			sendCommand('rst\r');
+			
+			return sReturn;
+			
+		}
+		
+		// call or set xb
+		public function xb (set:int=-1, cache:Boolean=false) : int
+		{
+			
+			// set the return value to the default
+			// as if we're request the value, not setting it
+			// -1 indicates it hasn't been request before
+			var nReturn:int = -1;
+			
+			// are set setting the value, or simply requesting it?
+			if (set < 0) {
+				
+				// we're simply requesting it
+				// are we using cache, and have we requested it before?
+				if (cache == true && _xb > -1) {
+					
+					// return the cached value
+					return _xb;
+					
+				} else {
+					
+					// request it from the device, and we'll return the result via an event
+					// make sure we're still connected
+					if (!connected) {
+						dispatchEvent(new ErrorEvent(ErrorEvent.ERROR, true, true, "You must be connected to a local TCP proxy to send a command to the RedBee RFID Reader."));
+						return -1;
+					}
+					
+					sendCommand('xb\r');
+					
+				}
+				
+			} else {
+				
+				// we're setting the value
+				sendCommand('xb ' + set + '\r');
+				
+			}
+			
+			return -1;
 			
 		}
 		
