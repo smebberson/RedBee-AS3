@@ -1,6 +1,6 @@
 ## RedBee RFID Reader ActionScript Library
 
-> Version 0.2
+> Version 0.3
 
 ## Contributors
 
@@ -20,3 +20,4 @@ At the moment, I'm just finalising the communication without Xbee bpan networkin
 	*	retrieve the firmware version (fw) of the RedBee (with support for returning cached values)
 	*   issue the rst command, and if boot prompt mode is enabled, return the result (with support for returning cached values)
 	*   set, and retrieve the Xbee bpan networking mode (xb) of the RedBee (with support for returning cached values)
+	*	save the most recent tag that was swiped
