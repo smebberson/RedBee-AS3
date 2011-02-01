@@ -2,6 +2,7 @@ package com.scottmebberson.redbee
 {
 	
 	import com.scottmebberson.redbee.events.RedBeeEvent;
+	import com.scottmebberson.redbee.events.TagSaveEvent;
 	import com.scottmebberson.redbee.events.TagSwipeEvent;
 	
 	import flash.events.ErrorEvent;
@@ -17,12 +18,17 @@ package com.scottmebberson.redbee
 		private var _host:String = "127.0.0.1";
 		private var _port:uint = 5331;
 		
-		/* private variables */
+		/* private variables associated with synchronous events */
 		private var _previousCommunication:String;
 		
 		private var _fw:String = null;
 		private var _rst:String = null;
 		private var _xb:int = -1;
+		private var _sv:String = null;
+		
+		/* private variables associated with asynchronous events */
+		private var _t:String = null;
+		private var _tValid:int = -1;
 		
 		/* private constants */
 		private static const EOL_DELIMITER : String = "\r\n>";
@@ -60,9 +66,13 @@ package com.scottmebberson.redbee
 			//end of message delimiter
 			while((index = _buffer.indexOf(EOL_DELIMITER)) > -1)
 			{
-				//extract the message from the beginning to where the delimiter is
-				//we don't include the delimiter
+				// extract the message from the beginning to where the delimiter is
+				// we don't include the delimiter
 				msg = _buffer.substring(0, index);
+				
+				// asynchronous responses seem to have different characters at the front
+				// normalise the difference, by removing the leading \r\n
+				msg = msg.replace(/\s?(.*)/g, "$1");
 				
 				// reset the buffer
 				_buffer = '';
@@ -108,6 +118,10 @@ package com.scottmebberson.redbee
 			var valid:int = (msg.indexOf('NACK') == -1) ? 1 : 0;
 			
 			if (msg.search(/^T:/) == 0) {
+				// store the last that was swiped
+				_t = id;
+				_tValid = valid;
+				// fire the event
 				dispatchEvent(new TagSwipeEvent(id, valid));
 			}
 			
@@ -128,7 +142,12 @@ package com.scottmebberson.redbee
 			} else if (_previousCommunication.search(/^xb/) == 0) {
 				_xb = Number(msg);
 				dispatchEvent(new RedBeeEvent(RedBeeEvent.XB, msg));
+			} else if (_previousCommunication.search(/^sv/) == 0) {
+				dispatchEvent(new TagSaveEvent(_t, (msg == 'ACK') ? true : false));
 			}
+			
+			// now that we're done, reset the previousCommunication
+			_previousCommunication = '';
 			
 		}
 		
@@ -235,6 +254,23 @@ package com.scottmebberson.redbee
 			}
 			
 			return -1;
+			
+		}
+		
+		// if '' is returned, it means the value is being set on the device
+		public function sv () : String
+		{
+			
+			var sReturn:String = '';
+			
+			if (!connected) {
+				dispatchEvent(new ErrorEvent(ErrorEvent.ERROR, true, true, "You must be connected to a local TCP proxy to send a command to the RedBee RFID Reader."));
+				return 'error';
+			}
+			
+			sendCommand('sv\r');
+			
+			return sReturn;
 			
 		}
 		
